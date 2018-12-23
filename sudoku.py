@@ -1,7 +1,7 @@
 from z3 import *
 
 
-grid = [[Int("x_%s_%s") % (i+1, j+1)
+grid = [[Int("x_%s_%s" % (i+1, j+1))
          for j in range(9)]
         for i in range(9)]
 cell_c = [And(1 <= grid[i][j], grid[i][j] <= 9) for i in range(9) for j in range(9)]
