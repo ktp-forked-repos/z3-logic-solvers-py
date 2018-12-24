@@ -1,5 +1,9 @@
 from z3 import *
 
+# Arrives at bad solution with separate loops
+# Figure out why - bad constraint somewhere?
+# Also work out how to search for multiple solutions in an underconstrained puzzle
+
 puzz_s = """..W.W.....
     ....W...B.
     ..B.B.W...
@@ -110,33 +114,40 @@ for c in range(width):
     s.add(U[0][c] == False)
     s.add(D[height - 1][c] == False)
 
-print(s.check())
-m = s.model()
+while s.check() == sat:
+    m = s.model()
 
-# Print path
-for r in range(height):
-    row = ""
-    for c in range(width):
-        t = puzzle[r][c]
-        if t != "W" and t != "B":
-            tl = (True if str(m[L[r][c]]) == "True" else False)
-            tr = (True if str(m[R[r][c]]) == "True" else False)
-            tu = (True if str(m[U[r][c]]) == "True" else False)
-            td = (True if str(m[D[r][c]]) == "True" else False)
-            if tu and td:
-                row = row + "│"
-            elif tr and td:
-                row = row + "┌"
-            elif tr and tu:
-                row = row + "└"
-            elif tl and td:
-                row = row + "┐"
-            elif tl and tu:
-                row = row + "┘"
-            elif tl and tr:
-                row = row + "─"
+    # Print path
+    for r in range(height):
+        row = ""
+        for c in range(width):
+            t = puzzle[r][c]
+            if t != "W" and t != "B":
+                tl = (True if str(m[L[r][c]]) == "True" else False)
+                tr = (True if str(m[R[r][c]]) == "True" else False)
+                tu = (True if str(m[U[r][c]]) == "True" else False)
+                td = (True if str(m[D[r][c]]) == "True" else False)
+                if tu and td:
+                    row = row + "│"
+                elif tr and td:
+                    row = row + "┌"
+                elif tr and tu:
+                    row = row + "└"
+                elif tl and td:
+                    row = row + "┐"
+                elif tl and tu:
+                    row = row + "┘"
+                elif tl and tr:
+                    row = row + "─"
+                else:
+                    row = row + t
             else:
                 row = row + t
-        else:
-            row = row + t
-    print(row)
+        print(row)
+    print("")
+    for r in range(height):
+        for c in range(width):
+            s.add(Or(L[r][c] != m[L[r][c]],
+                     R[r][c] != m[R[r][c]],
+                     U[r][c] != m[U[r][c]],
+                     D[r][c] != m[D[r][c]]))
