@@ -1,5 +1,5 @@
 from z3 import *
-import numpy as np
+
 
 def grid_edges(grid):
     (height, width) = grid.shape
@@ -44,17 +44,3 @@ def traverse_path(puzzle, start_cell, model, z3_vars):
             dir_from = 'U'
         if curr_cell == start_cell:
             return tuple(path[0]), tuple(path[1])
-
-
-def test_single_loop(puzzle, model, z3_vars):
-    # Find all cells that are on the path
-    on_path = np.zeros(puzzle.shape, dtype="bool")
-    for k in z3_vars.keys():
-        if is_true(model[z3_vars[k]]):
-            on_path[k[0]] = 1
-            on_path[k[1]] = 1
-    start = np.unravel_index(np.argmax(on_path), puzzle.shape)
-    # Set all reachable cells on the path to 0
-    on_path[traverse_path(puzzle, start, model, z3_vars)] = 0
-    # Return if we reached all cells
-    return not np.any(on_path)
