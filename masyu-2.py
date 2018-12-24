@@ -11,15 +11,11 @@ def path_constraints(solver, cells, z3_vars):
         edge_r = ((r, c), (r, c + 1))
         edge_u = ((r - 1, c), (r, c))
         edge_d = ((r, c), (r + 1, c))
+        edges = [edge_l, edge_r, edge_u, edge_d]
         valid = set()
-        if edge_l in z3_vars:
-            valid.add(edge_l)
-        if edge_r in z3_vars:
-            valid.add(edge_r)
-        if edge_u in z3_vars:
-            valid.add(edge_u)
-        if edge_d in z3_vars:
-            valid.add(edge_d)
+        for x in edges:
+            if x in z3_vars:
+                valid.add(x)
         edge_c.append(And(*[Not(z3_vars[x]) for x in valid]))
         for pair in itertools.combinations(valid, 2):
             rule = []
@@ -112,13 +108,33 @@ def coalesce_islands_constraints(puzzle, solver, model, z3_vars):
     # constraints that ensure that an island is merged with at least
     # one adjacent island.
 
-    # Find all loops... this might be hard lmao
+    # Find all loops
+    loops = np.zeros(puzzle.shape)
+    loop_count = 1
+    for k in z3_vars.keys():
+        if is_true(model[z3_vars[k]]):
+            loops[k[0]] = -1
+            loops[k[1]] = -1
+    while -1 in loops:
+        start_cell = np.unravel_index(np.argmin(loops), puzzle.shape)
+        loops[traverse_path(puzzle, start_cell, model, z3_vars)] = loop_count
+        loop_count += 1
 
-    # For each closed loop
-    #   iterate every cell in that loop - if an edge can be drawn to a different loop, add that as a possible condition
-    # Each loop now has a set of Or conditions for edges.
-    # And this into the solver.
-    return
+    # For all loops, construct possible edges to another loop
+    loop_rules = [[]] * loop_count
+    for n in range(1, loop_count + 1):
+        for cell in zip(*np.where(loops == n)):
+            (r, c) = cell
+            edge_l = ((r, c - 1), (r, c))
+            edge_r = ((r, c), (r, c + 1))
+            edge_u = ((r - 1, c), (r, c))
+            edge_d = ((r, c), (r + 1, c))
+            edges = [edge_l, edge_r, edge_u, edge_d]
+            for x in edges:
+                if x in z3_vars and loops[x[0]] != loops[x[1]]:
+                    loop_rules[n].append(z3_vars[x])
+    # print(loop_rules)
+    solver.add(And(*[Or(*rule) for rule in loop_rules]))
 
 
 def print_masyu(puzzle, model, z3_vars):
@@ -175,16 +191,16 @@ coors = [(r, c) for r in range(puzz.shape[0]) for c in range(puzz.shape[1])]
 path_constraints(s, coors, p_vars)
 
 white = np.where(puzz == 'W')
-white = [(white[0][i], white[1][i]) for i in range(len(white[0]))]
-white_pearl_constraints(s, white, p_vars)
+white_pearl_constraints(s, zip(*white), p_vars)
 
 black = np.where(puzz == 'B')
-black = [(black[0][i], black[1][i]) for i in range(len(black[0]))]
-black_pearl_constraints(s, black, p_vars)
+black_pearl_constraints(s, zip(*black), p_vars)
 
 while s.check() == sat:
     m = s.model()
     print_masyu(puzz, m, p_vars)
-    print(test_single_loop(puzz, m, p_vars))
-    print("")
-    find_new_sol_mat(s, m, p_vars)
+    if not test_single_loop(puzz, m, p_vars):
+        print("Coalescing islands...")
+        coalesce_islands_constraints(puzz, s, m, p_vars)
+    else:
+        break

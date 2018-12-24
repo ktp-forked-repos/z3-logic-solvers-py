@@ -43,7 +43,7 @@ def traverse_path(puzzle, start_cell, model, z3_vars):
             curr_cell = (r + 1, c)
             dir_from = 'U'
         if curr_cell == start_cell:
-            return path
+            return tuple(path[0]), tuple(path[1])
 
 
 def test_single_loop(puzzle, model, z3_vars):
@@ -56,5 +56,5 @@ def test_single_loop(puzzle, model, z3_vars):
     start = np.unravel_index(np.argmax(on_path), puzzle.shape)
     # Set all reachable cells on the path to 0
     on_path[traverse_path(puzzle, start, model, z3_vars)] = 0
-    # Return - that we reached all cells
+    # Return if we reached all cells
     return not np.any(on_path)
