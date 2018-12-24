@@ -24,8 +24,7 @@ def path_constraints(solver, cells, z3_vars):
         for pair in itertools.combinations(valid, 2):
             rule = []
             rule.extend([z3_vars[x] for x in pair])
-            rule.extend([Not(z3_vars[x]) for
-                         x in valid - set(pair)])
+            rule.extend([Not(z3_vars[x]) for x in valid - set(pair)])
             edge_c.append(And(*rule))
         solver.append(Or(*edge_c))
 
@@ -108,6 +107,20 @@ def black_pearl_constraints(solver, pearls, z3_vars):
         solver.add(Or(*pearl_c))
 
 
+def coalesce_islands_constraints(puzzle, solver, model, z3_vars):
+    # Given an incorrect model that has multiple loops, add a set of
+    # constraints that ensure that an island is merged with at least
+    # one adjacent island.
+
+    # Find all loops... this might be hard lmao
+
+    # For each closed loop
+    #   iterate every cell in that loop - if an edge can be drawn to a different loop, add that as a possible condition
+    # Each loop now has a set of Or conditions for edges.
+    # And this into the solver.
+    return
+
+
 def print_masyu(puzzle, model, z3_vars):
     (height, width) = puzzle.shape
     for r in range(height):
@@ -119,7 +132,6 @@ def print_masyu(puzzle, model, z3_vars):
                 r_e = c != width - 1 and is_true(model[z3_vars[((r, c), (r, c + 1))]])
                 u_e = r != 0 and is_true(model[z3_vars[((r - 1, c), (r, c))]])
                 d_e = r != height - 1 and is_true(model[z3_vars[((r, c), (r + 1, c))]])
-                # print("({0}, {1}): {2} {3} {4} {5}".format(r, c, l_e, r_e, u_e, d_e))
                 if u_e and d_e:
                     row = row + "│"
                 elif r_e and d_e:
@@ -173,5 +185,6 @@ black_pearl_constraints(s, black, p_vars)
 while s.check() == sat:
     m = s.model()
     print_masyu(puzz, m, p_vars)
+    print(test_single_loop(puzz, m, p_vars))
     print("")
     find_new_sol_mat(s, m, p_vars)
