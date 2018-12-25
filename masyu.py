@@ -109,7 +109,7 @@ def black_pearl_constraints(solver, pearls, z3_vars):
         solver.add(Or(*pearl_c))
 
 
-def coalesce_loops_constraints(puzzle, solver, model, z3_vars):
+def coalesce_loops_constraints(solver, puzzle, model, z3_vars):
     """Given an incorrect model with multiple loops, add constraints to the puzzle to merge adjacent loops."""
 
     # Find all loops
@@ -124,15 +124,16 @@ def coalesce_loops_constraints(puzzle, solver, model, z3_vars):
         # Argmin pulls out first cell with no loop found
         loop_count += 1
         start_cell = np.unravel_index(np.argmin(loops), puzzle.shape)
-        loops[traverse_path(puzzle, start_cell, model, z3_vars)] = loop_count
+        loops[traverse_path(start_cell, model, z3_vars)] = loop_count
 
     # Single loop puzzle, no need to add constraints
     if loop_count == 1:
         return
 
-    loop_rules = [[]] * loop_count
+    loop_rules = []
     # Iterate over all loops
     for n in range(1, loop_count + 1):
+        curr_rule = []
         # Extract cells in the current loop
         for cell in zip(*np.where(loops == n)):
             (r, c) = cell
@@ -144,7 +145,10 @@ def coalesce_loops_constraints(puzzle, solver, model, z3_vars):
             for x in edges:
                 # If the edge points to outside the loop, it is a possible edge to expand the loop
                 if x in z3_vars and loops[x[0]] != loops[x[1]]:
-                    loop_rules[n - 1].append(z3_vars[x])
+                    curr_rule.append(z3_vars[x])
+        if len(curr_rule) == 0:
+            curr_rule.append(True)
+        loop_rules.append(curr_rule)
     # Every loop must be expanded, by at least one edge
     solver.add(And(*[Or(*rule) for rule in loop_rules]))
 
@@ -160,12 +164,12 @@ def test_single_loop(puzzle, model, z3_vars):
     # Arbitrary start cell on path
     start = np.unravel_index(np.argmax(on_path), puzzle.shape)
     # Set all reachable cells on the path to 0
-    on_path[traverse_path(puzzle, start, model, z3_vars)] = 0
+    on_path[traverse_path(start, model, z3_vars)] = 0
     # Return if we reached all cells
     return not np.any(on_path)
 
 
-def print_masyu(puzzle, model, z3_vars):
+def masyu_to_str(puzzle, model, z3_vars):
     res = ""
     (height, width) = puzzle.shape
     for r in range(height):
@@ -218,8 +222,7 @@ for edge in grid_edges(puzz):
 
 s = Solver()
 
-coors = [(r, c) for r in range(puzz.shape[0]) for c in range(puzz.shape[1])]
-path_constraints(s, coors, p_vars)
+path_constraints(s, grid_cells(puzz), p_vars)
 
 white = np.where(puzz == 'W')
 white_pearl_constraints(s, zip(*white), p_vars)
@@ -229,9 +232,9 @@ black_pearl_constraints(s, zip(*black), p_vars)
 
 while s.check() == sat:
     m = s.model()
-    print(print_masyu(puzz, m, p_vars))
+    print(masyu_to_str(puzz, m, p_vars))
     if not test_single_loop(puzz, m, p_vars):
         print("Coalescing loops...")
-        coalesce_loops_constraints(puzz, s, m, p_vars)
+        coalesce_loops_constraints(s, puzz, m, p_vars)
     else:
         break
