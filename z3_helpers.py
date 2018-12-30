@@ -61,7 +61,7 @@ def traverse_path(start_cell, model, z3_vars):
 
 
 def find_region(start_cell, model, z3_vars):
-    ret = [[start_cell[0]], [start_cell[1]]]
+    # ret = [[start_cell[0]], [start_cell[1]]]
     poly_cells = [start_cell]
     prev_added = [start_cell]
     while len(prev_added):
@@ -77,8 +77,9 @@ def find_region(start_cell, model, z3_vars):
                 # Check - valid cell, same value, and not currently in the region
                 if x in z3_vars and model[z3_vars[x]] == model[z3_vars[start_cell]] and x not in poly_cells:
                     to_add.add(x)
-                    ret[0].append(x[0])
-                    ret[1].append(x[1])
+                    # ret[0].append(x[0])
+                    # ret[1].append(x[1])
         poly_cells.extend(to_add)
         prev_added = list(to_add)
-    return tuple(ret[0]), tuple(ret[1])
+    # return tuple(ret[0]), tuple(ret[1])
+    return tuple(zip(*tuple(set(poly_cells))))

@@ -3,12 +3,23 @@ from z3_helpers import *
 import numpy as np
 
 
+def get_max_size_polynomino(puzzle):
+    # Super simple way to decrease upper bound
+    found_polys = set()
+    for cell in grid_cells(puzzle):
+        if puzzle[cell] != '.':
+            found_polys.add(int(puzzle[cell]))
+    return sum(found_polys)
+
+
 def prior_constraints(solver, puzzle, z3_vars):
-    for cell in grid_cells(puzz):
+    max_poly = get_max_size_polynomino(puzzle)
+    for cell in grid_cells(puzzle):
         if puzzle[cell] != '.':
             solver.add(And(z3_vars[cell] == int(puzzle[cell])))
         else:
             solver.add(And(z3_vars[cell] > 0))
+            solver.add(And(z3_vars[cell] <= max_poly))
 
 
 def test_polynomino_counts(puzzle, model, z3_vars):
@@ -18,7 +29,6 @@ def test_polynomino_counts(puzzle, model, z3_vars):
         start_cell = np.unravel_index(np.argmin(polynominos), puzzle.shape)
         region = find_region(start_cell, model, z3_vars)
         polynominos[region] = len(list(zip(*region)))
-        # print(polynominos)
     puzz_soln = model_to_matrix(puzzle, model, z3_vars)
     return not np.any(puzz_soln - polynominos)
 
@@ -40,7 +50,7 @@ def adjust_polynomino_constraints(solver, puzzle, model, z3_vars):
         # Satisfied region - add irrelevant rule to avoid breaking
         if len(region) == model[z3_vars[region[0]]].as_long():
             curr_rule.append(And(True))
-            print('%d correct size - %d' % (p, model[z3_vars[region[0]]].as_long()))
+            # print('%d correct size - %d' % (p, model[z3_vars[region[0]]].as_long()))
             poly_rules.append(curr_rule)
             continue
         grow_region = len(region) < model[z3_vars[region[0]]].as_long()
@@ -57,11 +67,11 @@ def adjust_polynomino_constraints(solver, puzzle, model, z3_vars):
                     if x in z3_vars and polynominos[x] != polynominos[cell]:
                         # If the cell is not taken over by another region
                         # then add this edge as a possible growth location
-                        # curr_rule.append(If(z3_vars[cell] == model[z3_vars[cell]],
-                        #                     z3_vars[x] == model[z3_vars[cell]],
-                        #                     # Replace this condition?0
-                        #                     True))
-                        curr_rule.append(z3_vars[x] == model[z3_vars[cell]])
+                        curr_rule.append(If(z3_vars[cell] == model[z3_vars[cell]],
+                                            z3_vars[x] == model[z3_vars[cell]],
+                                            # Replace this condition?0
+                                            True))
+                        # curr_rule.append(z3_vars[x] == model[z3_vars[cell]])
             elif shrink_region:
                 curr_rule.append(z3_vars[cell] != model[z3_vars[cell]])
         poly_rules.append(curr_rule)
@@ -96,11 +106,11 @@ s = Solver()
 prior_constraints(s, puzz, p_vars)
 while s.check() == sat:
     m = s.model()
-    print(fillomino_to_str(puzz, m, p_vars))
+    # print(fillomino_to_str(puzz, m, p_vars))
     if not test_polynomino_counts(puzz, m, p_vars):
-        print("Adjusting polynominos...")
+        # print("Adjusting polynominos...")
         adjust_polynomino_constraints(s, puzz, m, p_vars)
     else:
+        print(fillomino_to_str(puzz, m, p_vars))
         break
 
-print(s.check())
