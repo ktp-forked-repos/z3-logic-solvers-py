@@ -124,7 +124,7 @@ def coalesce_loops_constraints(solver, puzzle, model, z3_vars):
         # Argmin pulls out first cell with no loop found
         loop_count += 1
         start_cell = np.unravel_index(np.argmin(loops), puzzle.shape)
-        loops[traverse_path(start_cell, model, z3_vars)] = loop_count
+        loops[traverse_loop(start_cell, model, z3_vars)] = loop_count
 
     # Single loop puzzle, no need to add constraints
     if loop_count == 1:
@@ -164,7 +164,7 @@ def test_single_loop(puzzle, model, z3_vars):
     # Arbitrary start cell on path
     start = np.unravel_index(np.argmax(on_path), puzzle.shape)
     # Set all reachable cells on the path to 0
-    on_path[traverse_path(start, model, z3_vars)] = 0
+    on_path[traverse_loop(start, model, z3_vars)] = 0
     # Return if we reached all cells
     return not np.any(on_path)
 

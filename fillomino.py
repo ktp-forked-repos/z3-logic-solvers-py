@@ -5,6 +5,7 @@ import numpy as np
 
 def get_max_size_polynomino(puzzle):
     # Super simple way to decrease upper bound
+    # TODO - improve upper bound by analyzing which cells must be a part of distinct polynominos
     found_polys = set()
     for cell in grid_cells(puzzle):
         if puzzle[cell] != '.':
@@ -34,7 +35,6 @@ def test_polynomino_counts(puzzle, model, z3_vars):
 
 
 def adjust_polynomino_constraints(solver, puzzle, model, z3_vars):
-    ## Broken, fix later.
     # Find all polynominos
     poly_count = 0
     polynominos = np.zeros(puzzle.shape) - 1
@@ -47,14 +47,13 @@ def adjust_polynomino_constraints(solver, puzzle, model, z3_vars):
     for p in range(1, poly_count + 1):
         curr_rule = []
         region = list(zip(*np.where(polynominos == p)))
-        # Satisfied region - add irrelevant rule to avoid breaking
+        # Satisfied region - add irrelevant rule to avoid breaking when joining all the rules together
         if len(region) == model[z3_vars[region[0]]].as_long():
             curr_rule.append(And(True))
-            # print('%d correct size - %d' % (p, model[z3_vars[region[0]]].as_long()))
             poly_rules.append(curr_rule)
             continue
         grow_region = len(region) < model[z3_vars[region[0]]].as_long()
-        shrink_region = len(region) > model[z3_vars[region[0]]].as_long()
+        shrink_region = not grow_region
         for cell in region:
             if grow_region:
                 (r, c) = cell
@@ -69,9 +68,7 @@ def adjust_polynomino_constraints(solver, puzzle, model, z3_vars):
                         # then add this edge as a possible growth location
                         curr_rule.append(If(z3_vars[cell] == model[z3_vars[cell]],
                                             z3_vars[x] == model[z3_vars[cell]],
-                                            # Replace this condition?0
                                             True))
-                        # curr_rule.append(z3_vars[x] == model[z3_vars[cell]])
             elif shrink_region:
                 curr_rule.append(z3_vars[cell] != model[z3_vars[cell]])
         poly_rules.append(curr_rule)

@@ -3,6 +3,7 @@ import numpy as np
 
 
 def grid_cells(grid):
+    """Return an iterator over all cells in (r, c) format"""
     (height, width) = grid.shape
     for r in range(height):
         for c in range(width):
@@ -10,6 +11,9 @@ def grid_cells(grid):
 
 
 def grid_edges(grid):
+    """Return an iterator over all edges between cells in the form ((r1, c1), (r2, c2)).
+
+    EITHER (r1, c1) + (0, 1) = (r2, c2) OR (r1, c1) + (1, 0) = (r2, c2)"""
     (height, width) = grid.shape
     for r in range(height):
         for c in range(width):
@@ -22,6 +26,7 @@ def grid_edges(grid):
 
 
 def model_to_matrix(puzzle, model, z3_cells):
+    """Return an array with the model values in the corresponding matrix positions"""
     ret = np.zeros(puzzle.shape)
     for k in z3_cells.keys():
         ret[k] = model[z3_cells[k]].as_long()
@@ -29,13 +34,22 @@ def model_to_matrix(puzzle, model, z3_cells):
 
 
 def find_new_sol_mat(solver, model, z3_vars):
+    """Add the constraint that the solution cannot be identical to this one."""
     diff_c = []
     for k in z3_vars.keys():
         diff_c.append(z3_vars[k] != is_true(model[z3_vars[k]]))
     solver.add(And(Or(*diff_c)))
 
 
-def traverse_path(start_cell, model, z3_vars):
+def traverse_loop(start_cell, model, z3_vars):
+    """Return all cells on the loop containing the start cell.
+
+    ASSUMPTION:
+        - start_cell is on a simple, closed loop - should be
+            accomplished with outside constraints
+        - z3_vars contains edge keys to z3 boolean values
+
+    Note: returned indices are NumPy formatted, in shape (2, N)."""
     path = [[], []]
     curr_cell = start_cell
     dir_from = None
@@ -61,7 +75,12 @@ def traverse_path(start_cell, model, z3_vars):
 
 
 def find_region(start_cell, model, z3_vars):
-    # ret = [[start_cell[0]], [start_cell[1]]]
+    """Return the contiguous region of cells with the same value containing start_cell.
+
+        ASSUMPTION:
+            - z3_vars contains cell keys
+
+        Note: returned indices are NumPy formatted, in shape (2, N)."""
     poly_cells = [start_cell]
     prev_added = [start_cell]
     while len(prev_added):
@@ -77,9 +96,6 @@ def find_region(start_cell, model, z3_vars):
                 # Check - valid cell, same value, and not currently in the region
                 if x in z3_vars and model[z3_vars[x]] == model[z3_vars[start_cell]] and x not in poly_cells:
                     to_add.add(x)
-                    # ret[0].append(x[0])
-                    # ret[1].append(x[1])
         poly_cells.extend(to_add)
         prev_added = list(to_add)
-    # return tuple(ret[0]), tuple(ret[1])
     return tuple(zip(*tuple(set(poly_cells))))
